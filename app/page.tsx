@@ -94,6 +94,7 @@ export default function Home() {
       height: 1,
       dpr: 1,
       shake: 0,
+      flash: 0,
       score: 0,
       best: 0,
       combo: 0,
@@ -177,6 +178,24 @@ export default function Home() {
       }
     };
 
+    const addImpact = (x: number, y: number, hue: number, energy = 1) => {
+      const count = Math.floor(4 + energy * 4);
+      for (let i = 0; i < count; i += 1) {
+        const angle = rand(0, Math.PI * 2);
+        const speed = rand(45, 120 + energy * 110);
+        particles.push({
+          x,
+          y,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed,
+          life: rand(0.1, 0.28),
+          maxLife: 0.28,
+          size: rand(0.9, 2.2),
+          hue: hue + rand(-10, 10),
+        });
+      }
+    };
+
     const pulseHud = () => {
       scoreRef.current?.animate(
         [
@@ -210,6 +229,7 @@ export default function Home() {
       });
       state.shake += mega ? 6 : chain ? 2.4 : 4;
       state.energy = Math.min(1.8, state.energy + (mega ? 0.25 : 0.13));
+      state.flash = Math.min(1.2, state.flash + (mega ? 0.52 : 0.28));
     };
 
     const popOrb = (index: number, pulse: Pulse) => {
@@ -309,6 +329,7 @@ export default function Home() {
 
     const update = (dt: number) => {
       state.energy = Math.max(0.16, state.energy - dt * 0.22);
+      state.flash = Math.max(0, state.flash - dt * 1.85);
       state.hueDrift = (state.hueDrift + dt * (7 + state.energy * 16)) % 360;
       state.shake = Math.max(0, state.shake - dt * 18);
 
@@ -348,24 +369,24 @@ export default function Home() {
           orb.x = orb.r;
           orb.vx = Math.abs(orb.vx) * 0.98;
           state.shake += 0.28;
-          addBurst(orb.x, orb.y, orb.hue, false);
+          addImpact(orb.x, orb.y, orb.hue, 0.45);
         } else if (orb.x + orb.r > state.width) {
           orb.x = state.width - orb.r;
           orb.vx = -Math.abs(orb.vx) * 0.98;
           state.shake += 0.28;
-          addBurst(orb.x, orb.y, orb.hue, false);
+          addImpact(orb.x, orb.y, orb.hue, 0.45);
         }
 
         if (orb.y - orb.r < 0) {
           orb.y = orb.r;
           orb.vy = Math.abs(orb.vy) * 0.98;
           state.shake += 0.28;
-          addBurst(orb.x, orb.y, orb.hue, false);
+          addImpact(orb.x, orb.y, orb.hue, 0.45);
         } else if (orb.y + orb.r > state.height) {
           orb.y = state.height - orb.r;
           orb.vy = -Math.abs(orb.vy) * 0.98;
           state.shake += 0.28;
-          addBurst(orb.x, orb.y, orb.hue, false);
+          addImpact(orb.x, orb.y, orb.hue, 0.45);
         }
       }
 
@@ -403,8 +424,9 @@ export default function Home() {
           if (impact > 120) {
             const midX = (a.x + b.x) * 0.5;
             const midY = (a.y + b.y) * 0.5;
-            addBurst(midX, midY, (a.hue + b.hue) * 0.5, false);
+            addImpact(midX, midY, (a.hue + b.hue) * 0.5, Math.min(1.6, impact * 0.004));
             state.shake += Math.min(1.6, impact * 0.0032);
+            state.flash = Math.min(1.2, state.flash + Math.min(0.1, impact * 0.0005));
           }
         }
       }
@@ -469,6 +491,11 @@ export default function Home() {
       bg.addColorStop(1, "hsl(220 45% 4%)");
       ctx.fillStyle = bg;
       ctx.fillRect(-32, -32, state.width + 64, state.height + 64);
+
+      if (state.flash > 0.02) {
+        ctx.fillStyle = `hsla(${(state.hueDrift + 22) % 360}, 95%, 78%, ${state.flash * 0.12})`;
+        ctx.fillRect(-32, -32, state.width + 64, state.height + 64);
+      }
 
       ctx.globalAlpha = 0.1 + state.energy * 0.2;
       ctx.strokeStyle = `hsl(${(state.hueDrift + 145) % 360} 100% 72%)`;
